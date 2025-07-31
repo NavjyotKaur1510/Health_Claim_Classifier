@@ -23,7 +23,7 @@ nlp = load_nlp()
 bert_model = load_bert_model()
 
 def preprocess_and_lemmatize(text):
-    text = re.sub(r'[^a-zA-Z\\s]', '', str(text).lower())
+    text = re.sub(r'[^a-zA-Z\s]', '', str(text).lower())
     doc = nlp(text)
     return " ".join([token.lemma_ for token in doc if not token.is_stop and not token.is_punct])
 
@@ -53,7 +53,7 @@ def train_model():
 model, report, conf_mat = train_model()
 
 st.title("🔬 Health Claim Verifier")
-st.markdown("Enter a health claim below to classify it as **True**, **False**, or **Misleading** using BERT + Random Forest model.")
+st.markdown("Enter a health claim to classify it as **True**, **False**, or **Misleading** using a BERT + Random Forest model.")
 
 user_input = st.text_area("📝 Enter a health claim:", height=100)
 
