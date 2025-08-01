@@ -1,41 +1,93 @@
-# train_model.py
+import streamlit as st
 import pandas as pd
 import re
 import spacy
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
 from imblearn.over_sampling import SMOTE
 from sentence_transformers import SentenceTransformer
-import joblib
+from sklearn.model_selection import train_test_split
 
-# Load models
-nlp = spacy.load("en_core_web_sm")
-bert_model = SentenceTransformer("bert-base-nli-mean-tokens")
+# ✅ Automatically download spaCy model if not found
+@st.cache_resource
+def load_nlp():
+    import spacy.cli
+    try:
+        return spacy.load("en_core_web_sm")
+    except OSError:
+        st.info("Downloading spaCy model...")
+        spacy.cli.download("en_core_web_sm")
+        return spacy.load("en_core_web_sm")
 
-# Preprocessing
-def preprocess(text):
+@st.cache_resource
+def load_bert_model():
+    return SentenceTransformer("bert-base-nli-mean-tokens")
+
+nlp = load_nlp()
+bert_model = load_bert_model()
+
+def preprocess_and_lemmatize(text):
     text = re.sub(r'[^a-zA-Z\s]', '', str(text).lower())
     doc = nlp(text)
     return " ".join([token.lemma_ for token in doc if not token.is_stop and not token.is_punct])
 
-# Load and process dataset
-df = pd.read_csv("Datensatz.csv")
-df = df.dropna(subset=['en_claim', 'label'])
-df['cleaned'] = df['en_claim'].apply(preprocess)
+@st.cache_data
+def train_model():
+    df = pd.read_csv("Datensatz.csv")
+    df = df.dropna(subset=['en_claim', 'label'])
+    df['cleaned'] = df['en_claim'].apply(preprocess_and_lemmatize)
 
-X = bert_model.encode(df['cleaned'].tolist(), show_progress_bar=True)
-y = df['label']
+    X = bert_model.encode(df['cleaned'].tolist(), show_progress_bar=True)
+    y = df['label']
 
-# Handle imbalance
-smote = SMOTE(random_state=42)
-X_res, y_res = smote.fit_resample(X, y)
+    smote = SMOTE(random_state=42)
+    X_resampled, y_resampled = smote.fit_resample(X, y)
 
-# Train model
-X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.2, random_state=42)
-model = RandomForestClassifier(n_estimators=200, max_depth=15, random_state=42)
-model.fit(X_train, y_train)
+    X_train, X_test, y_train, y_test = train_test_split(X_resampled, y_resampled, test_size=0.2, random_state=42)
 
-# Save model and BERT
-joblib.dump(model, "rf_model.pkl")
-joblib.dump(bert_model, "bert_model.pkl")
+    model = RandomForestClassifier(n_estimators=200, max_depth=15, random_state=42)
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    report = classification_report(y_test, y_pred, output_dict=True)
+    conf_mat = confusion_matrix(y_test, y_pred)
+
+    return model, report, conf_mat
+
+# 🚀 Train once and cache
+model, report, conf_mat = train_model()
+
+# 🧠 Streamlit UI
+st.title("🔬 Health Claim Verifier")
+st.markdown("Enter a health claim below to classify it as **True**, **False**, or **Misleading** using a trained ML model.")
+
+user_input = st.text_area("📝 Enter a health claim:", height=100)
+
+if st.button("Verify Claim"):
+    if not user_input.strip():
+        st.warning("Please enter a claim.")
+    else:
+        processed = preprocess_and_lemmatize(user_input)
+        embedded = bert_model.encode([processed])
+        prediction = model.predict(embedded)[0]
+
+        label_map = {
+            0: "True ✅",
+            1: "False ❌",
+            2: "Misleading ⚠️"
+        }
+
+        st.subheader("📌 Prediction Result:")
+        st.success(f"**This claim is predicted as: {label_map.get(prediction, 'Unknown')}**")
+
+with st.expander("📊 Show Model Performance"):
+    st.subheader("Classification Report")
+    st.dataframe(pd.DataFrame(report).transpose())
+
+    st.subheader("Confusion Matrix Heatmap")
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(conf_mat, annot=True, fmt="d", cmap="Blues", xticklabels=["True", "False", "Misleading"], yticklabels=["True", "False", "Misleading"])
+    plt.
