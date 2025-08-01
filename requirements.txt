@@ -1,9 +1,7 @@
 streamlit
 pandas
-scikit-learn
+scikit-learn==1.4.2
 spacy
+imbalanced-learn==0.12.2
 sentence-transformers
-imblearn
-matplotlib
-seaborn
-joblib
+numpy
