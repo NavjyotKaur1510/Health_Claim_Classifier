@@ -29,11 +29,15 @@ def load_resources():
 
     # Load spaCy model
     # You might need to run: python -m spacy download en_core_web_sm
+    import spacy
+    import subprocess
+
     try:
         nlp = spacy.load("en_core_web_sm")
-    except OSError:
-        st.error("spaCy model 'en_core_web_sm' not found. Please run 'python -m spacy download en_core_web_sm' in your terminal.")
-        return None, None, None, None
+    except:
+        subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+        nlp = spacy.load("en_core_web_sm")
+
 
 
     # Text preprocessing and lemmatization function
