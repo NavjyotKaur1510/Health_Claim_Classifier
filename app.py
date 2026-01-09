@@ -79,7 +79,7 @@ def load_resources():
 
 st.set_page_config(page_title="Fact-Checking Claim Classifier", layout="wide")
 
-st.title("🔎 Fact-Checking Claim Classifier")
+st.title("🔎 Fact-Checking Health Claim Classifier")
 st.markdown("""
 This application uses a trained Machine Learning model (Random Forest) to classify whether a given claim is likely true or false.
 Enter a claim in the text box below and click the 'Classify' button to see the result.
